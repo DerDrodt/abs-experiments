@@ -19,6 +19,9 @@ impl fmt::Display for Type {
             }
             args.push_str(&a.to_string());
         }
+        if !self.args.is_empty() {
+            args.push('>');
+        }
         write!(f, "{}{}", self.ident, args)
     }
 }

@@ -16,6 +16,10 @@ pub use pattern::*;
 pub use stmt::*;
 pub use ty::*;
 
+pub trait DisplayABS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>, indent: u32) -> fmt::Result;
+}
+
 pub struct Module {
     pub name: Ident,
     pub children: Vec<ModuleItem>,
@@ -134,7 +138,6 @@ impl fmt::Display for ClassDecl {
                 }
                 implements.push_str(&p.to_string())
             }
-            implements.push_str(" ")
         }
 
         let fields = if self.fields.is_empty() {
@@ -178,7 +181,7 @@ impl fmt::Display for ClassDecl {
 
         write!(
             f,
-            "class {}{}{}{{\n{}{}{}{}}}",
+            "class {}{}{} {{\n{}{}{}{}}}",
             self.ident, params, implements, fields, init, recover, methods
         )
     }
@@ -200,7 +203,7 @@ impl fmt::Display for MethodSig {
             params.push_str(&p.to_string());
         }
 
-        write!(f, "{} {}({})", self.ret, self.ident, params)
+        write!(f, "\t{} {}({})", self.ret, self.ident, params)
     }
 }
 

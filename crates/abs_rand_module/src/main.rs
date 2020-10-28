@@ -1,3 +1,10 @@
+use std::io::prelude::*;
+use std::{
+    fs::{self, File},
+    io,
+    path::Path,
+};
+
 use abs_syntax::ast;
 use gen::ty;
 
@@ -126,7 +133,33 @@ fn class_generated() -> ast::ClassDecl {
         .complete()
 }
 
-fn main() {
+fn clear_out() -> io::Result<()> {
+    let path = Path::new("./out/");
+    for e in fs::read_dir(path)? {
+        fs::remove_file(e?.path())?;
+    }
+
+    Ok(())
+}
+
+fn write_module(idx: u32) -> io::Result<()> {
     let module = gen_mock_module();
-    println!("{}", module);
+
+    let path_str = format!("./out/mod-{}.abs", idx);
+    let path = Path::new(&path_str);
+
+    let mut f = File::create(path)?;
+
+    f.write_all(module.to_string().as_bytes())?;
+
+    Ok(())
+}
+
+const NUM_MODULES: u32 = 100;
+
+fn main() {
+    clear_out().expect("Err while clearing out dir");
+    for i in 0..NUM_MODULES {
+        write_module(i).expect("An error occurred while writing the module");
+    }
 }

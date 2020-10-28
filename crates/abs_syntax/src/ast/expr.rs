@@ -1,6 +1,9 @@
 use std::fmt;
 
-use super::{CaseBranch, Ident, Literal, Type};
+use crate::add_fmt;
+
+use super::{CaseBranch, DisplayABS, Ident, Literal, Type};
+#[derive(Clone)]
 pub enum Expr {
     Pure(PureExpr),
     Eff(EffExpr),
@@ -11,6 +14,15 @@ impl fmt::Display for Expr {
         match self {
             Expr::Pure(e) => fmt::Display::fmt(e, f),
             Expr::Eff(e) => fmt::Display::fmt(e, f),
+        }
+    }
+}
+
+impl DisplayABS for Expr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        match self {
+            Expr::Pure(e) => e.to_abs(f),
+            Expr::Eff(e) => e.to_abs(f),
         }
     }
 }
@@ -28,6 +40,7 @@ impl From<EffExpr> for Expr {
     }
 }
 
+#[derive(Clone)]
 pub enum PureExpr {
     Ident(IdentExpr),
     ThisIdent(IdentExpr),
@@ -44,6 +57,28 @@ pub enum PureExpr {
     Operator(OperatorExpr),
     TypeCheck(TypeCheckExpr),
     TypeCast(TypeCastExpr),
+}
+
+impl DisplayABS for PureExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        match self {
+            PureExpr::Ident(e) => e.to_abs(f),
+            PureExpr::ThisIdent(e) => e.to_abs(f),
+            PureExpr::This => f.add("this"),
+            PureExpr::Null => f.add("null"),
+            PureExpr::Literal(e) => e.to_abs(f),
+            PureExpr::TemplateString => todo!(),
+            PureExpr::Let(e) => e.to_abs(f),
+            PureExpr::DataConstr(e) => e.to_abs(f),
+            PureExpr::FnApp(e) => e.to_abs(f),
+            PureExpr::ParFnApp(e) => e.to_abs(f),
+            PureExpr::When(e) => e.to_abs(f),
+            PureExpr::Case(e) => e.to_abs(f),
+            PureExpr::Operator(e) => e.to_abs(f),
+            PureExpr::TypeCheck(e) => e.to_abs(f),
+            PureExpr::TypeCast(e) => e.to_abs(f),
+        }
+    }
 }
 
 impl fmt::Display for PureExpr {
@@ -80,6 +115,7 @@ impl From<IdentExpr> for PureExpr {
     }
 }
 
+#[derive(Clone)]
 pub struct IdentExpr {
     pub ident: Ident,
 }
@@ -90,6 +126,13 @@ impl fmt::Display for IdentExpr {
     }
 }
 
+impl DisplayABS for IdentExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.ident.to_abs(f)
+    }
+}
+
+#[derive(Clone)]
 pub struct LetExpr {
     pub ty: Type,
     pub ident: Ident,
@@ -107,6 +150,23 @@ impl fmt::Display for LetExpr {
     }
 }
 
+impl DisplayABS for LetExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        f.add("let ");
+        self.ty.to_abs(f);
+        f.add(" ");
+        self.ident.to_abs(f);
+        f.add(" = ");
+        self.value.to_abs(f);
+        f.add_indent();
+        f.new_line();
+        f.add("in ");
+        self.inner.to_abs(f);
+        f.sub_indent();
+    }
+}
+
+#[derive(Clone)]
 pub struct DataConstrExpr {
     pub ident: Ident,
     pub args: Vec<PureExpr>,
@@ -127,6 +187,14 @@ impl fmt::Display for DataConstrExpr {
     }
 }
 
+impl DisplayABS for DataConstrExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.ident.to_abs(f);
+        f.parenthesized(|f| f.list(self.args.iter(), ", "))
+    }
+}
+
+#[derive(Clone)]
 pub struct FnAppExpr {
     pub ident: Ident,
     pub args: Vec<PureExpr>,
@@ -147,6 +215,14 @@ impl fmt::Display for FnAppExpr {
     }
 }
 
+impl DisplayABS for FnAppExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.ident.to_abs(f);
+        f.parenthesized(|f| f.list(self.args.iter(), ", "))
+    }
+}
+
+#[derive(Clone)]
 pub struct ParFnAppExpr {}
 
 impl fmt::Display for ParFnAppExpr {
@@ -155,6 +231,13 @@ impl fmt::Display for ParFnAppExpr {
     }
 }
 
+impl DisplayABS for ParFnAppExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        todo!()
+    }
+}
+
+#[derive(Clone)]
 pub struct WhenExpr {
     pub condition: Box<PureExpr>,
     pub then: Box<PureExpr>,
@@ -171,6 +254,18 @@ impl fmt::Display for WhenExpr {
     }
 }
 
+impl DisplayABS for WhenExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        f.add("when ");
+        self.condition.to_abs(f);
+        f.add(" then ");
+        self.then.to_abs(f);
+        f.add(" else ");
+        self.r#else.to_abs(f)
+    }
+}
+
+#[derive(Clone)]
 pub struct CaseExpr {
     pub expr: Box<PureExpr>,
     pub branches: Vec<CaseBranch<PureExpr>>,
@@ -191,6 +286,26 @@ impl fmt::Display for CaseExpr {
     }
 }
 
+impl DisplayABS for CaseExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        f.add("case ");
+        self.expr.to_abs(f);
+        f.braced(|f| {
+            f.list_fn(
+                self.branches.iter(),
+                |i, f| {
+                    if i > 0 {
+                        f.new_line();
+                        f.add("|")
+                    }
+                },
+                |_, _| {},
+            )
+        })
+    }
+}
+
+#[derive(Clone)]
 pub struct TypeCheckExpr {
     pub expr: Box<PureExpr>,
     pub ty: Ident,
@@ -202,6 +317,15 @@ impl fmt::Display for TypeCheckExpr {
     }
 }
 
+impl DisplayABS for TypeCheckExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.expr.to_abs(f);
+        f.add(" implements ");
+        self.ty.to_abs(f)
+    }
+}
+
+#[derive(Clone)]
 pub struct TypeCastExpr {
     pub expr: Box<PureExpr>,
     pub ty: Ident,
@@ -213,6 +337,15 @@ impl fmt::Display for TypeCastExpr {
     }
 }
 
+impl DisplayABS for TypeCastExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.expr.to_abs(f);
+        f.add(" as ");
+        self.ty.to_abs(f)
+    }
+}
+
+#[derive(Clone)]
 pub enum OperatorExpr {
     Unary(UnaryExpr),
     Binary(BinaryExpr),
@@ -227,6 +360,16 @@ impl fmt::Display for OperatorExpr {
     }
 }
 
+impl DisplayABS for OperatorExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        match self {
+            OperatorExpr::Unary(e) => e.to_abs(f),
+            OperatorExpr::Binary(e) => e.to_abs(f),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct UnaryExpr {
     pub op: UnaryOp,
     pub expr: Box<PureExpr>,
@@ -238,6 +381,14 @@ impl fmt::Display for UnaryExpr {
     }
 }
 
+impl DisplayABS for UnaryExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        add_fmt!(f, "{} ", self.op);
+        self.expr.to_abs(f);
+    }
+}
+
+#[derive(Clone)]
 pub enum UnaryOp {
     Not,
     Minus,
@@ -252,6 +403,7 @@ impl fmt::Display for UnaryOp {
     }
 }
 
+#[derive(Clone)]
 pub struct BinaryExpr {
     pub op: BinaryOp,
     pub left: Box<PureExpr>,
@@ -264,6 +416,15 @@ impl fmt::Display for BinaryExpr {
     }
 }
 
+impl DisplayABS for BinaryExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.left.to_abs(f);
+        add_fmt!(f, " {} ", self.op);
+        self.right.to_abs(f);
+    }
+}
+
+#[derive(Clone, Copy)]
 pub enum BinaryOp {
     Or,
     And,
@@ -301,6 +462,7 @@ impl fmt::Display for BinaryOp {
     }
 }
 
+#[derive(Clone)]
 pub enum EffExpr {
     New(NewExpr),
     SyncCall(SyncCallExpr),
@@ -321,12 +483,25 @@ impl fmt::Display for EffExpr {
     }
 }
 
+impl DisplayABS for EffExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        match self {
+            EffExpr::New(e) => e.to_abs(f),
+            EffExpr::SyncCall(e) => e.to_abs(f),
+            EffExpr::AsyncCall(e) => e.to_abs(f),
+            EffExpr::Get(e) => e.to_abs(f),
+            EffExpr::Await(e) => e.to_abs(f),
+        }
+    }
+}
+
 impl From<NewExpr> for EffExpr {
     fn from(e: NewExpr) -> Self {
         EffExpr::New(e)
     }
 }
 
+#[derive(Clone)]
 pub struct NewExpr {
     pub local: bool,
     pub ty: Ident,
@@ -349,6 +524,18 @@ impl fmt::Display for NewExpr {
     }
 }
 
+impl DisplayABS for NewExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        f.add("new ");
+        if self.local {
+            f.add("local ");
+        }
+        self.ty.to_abs(f);
+        f.parenthesized(|f| f.list(self.args.iter(), ", "))
+    }
+}
+
+#[derive(Clone)]
 pub struct SyncCallExpr {
     pub callee: PureExpr,
     pub method: Ident,
@@ -369,6 +556,16 @@ impl fmt::Display for SyncCallExpr {
     }
 }
 
+impl DisplayABS for SyncCallExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.callee.to_abs(f);
+        f.add(".");
+        self.method.to_abs(f);
+        f.parenthesized(|f| f.list(self.args.iter(), ", "))
+    }
+}
+
+#[derive(Clone)]
 pub struct AsyncCallExpr {
     pub callee: PureExpr,
     pub method: Ident,
@@ -389,6 +586,16 @@ impl fmt::Display for AsyncCallExpr {
     }
 }
 
+impl DisplayABS for AsyncCallExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.callee.to_abs(f);
+        f.add("!");
+        self.method.to_abs(f);
+        f.parenthesized(|f| f.list(self.args.iter(), ", "))
+    }
+}
+
+#[derive(Clone)]
 pub struct GetExpr {
     pub expr: PureExpr,
 }
@@ -399,6 +606,14 @@ impl fmt::Display for GetExpr {
     }
 }
 
+impl DisplayABS for GetExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.expr.to_abs(f);
+        f.add(".get")
+    }
+}
+
+#[derive(Clone)]
 pub struct AwaitExpr {
     pub call: AsyncCallExpr,
 }
@@ -406,5 +621,12 @@ pub struct AwaitExpr {
 impl fmt::Display for AwaitExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "await {}", self.call)
+    }
+}
+
+impl DisplayABS for AwaitExpr {
+    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        f.add("await ");
+        self.call.to_abs(f)
     }
 }

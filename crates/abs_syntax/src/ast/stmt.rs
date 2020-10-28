@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::fmt::ABSFormatter;
 
-use super::{CaseBranch, DisplayABS, Expr, Guard, Ident, PureExpr, Type};
+use super::{Annotations, CaseBranch, DisplayABS, Expr, Guard, Ident, PureExpr, Type};
 
 #[derive(Clone)]
 pub enum Stmt {
@@ -97,6 +97,7 @@ impl From<ReturnStmt> for Stmt {
 
 #[derive(Clone)]
 pub struct VarDeclStmt {
+    pub annotations: Annotations,
     pub ty: Type,
     pub ident: Ident,
     pub init: Option<Expr>,
@@ -112,6 +113,7 @@ impl fmt::Display for VarDeclStmt {
 
 impl DisplayABS for VarDeclStmt {
     fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+        self.annotations.to_abs(f);
         self.ty.to_abs(f);
         f.add(" ");
         self.ident.to_abs(f);

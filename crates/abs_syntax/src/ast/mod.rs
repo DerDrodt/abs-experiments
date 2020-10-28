@@ -1,5 +1,6 @@
 use std::fmt;
 
+mod annotation;
 mod expr;
 mod guard;
 mod ident;
@@ -8,6 +9,7 @@ mod pattern;
 mod stmt;
 mod ty;
 
+pub use annotation::*;
 pub use expr::*;
 pub use guard::*;
 pub use ident::*;
@@ -68,6 +70,7 @@ impl DisplayABS for Module {
 
 #[derive(Clone)]
 pub enum ModuleItem {
+    DataTypeDecl(DataTypeDecl),
     InterfaceDecl(InterfaceDecl),
     ClassDecl(ClassDecl),
     MainBlock(Block),
@@ -87,7 +90,14 @@ impl DisplayABS for ModuleItem {
             ModuleItem::InterfaceDecl(i) => i.to_abs(f),
             ModuleItem::ClassDecl(c) => c.to_abs(f),
             ModuleItem::MainBlock(b) => b.to_abs(f),
+            ModuleItem::DataTypeDecl(d) => d.to_abs(f),
         }
+    }
+}
+
+impl From<DataTypeDecl> for ModuleItem {
+    fn from(d: DataTypeDecl) -> Self {
+        ModuleItem::DataTypeDecl(d)
     }
 }
 
@@ -106,6 +116,84 @@ impl From<ClassDecl> for ModuleItem {
 impl From<Block> for ModuleItem {
     fn from(i: Block) -> Self {
         ModuleItem::MainBlock(i)
+    }
+}
+
+#[derive(Clone)]
+pub struct DataTypeDecl {
+    pub ident: Ident,
+    pub params: Vec<Ident>,
+    pub constr: Vec<DataConstr>,
+}
+
+impl fmt::Display for DataTypeDecl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
+    }
+}
+
+impl DisplayABS for DataTypeDecl {
+    fn to_abs(&self, f: &mut ABSFormatter) {
+        f.add("data ");
+        self.ident.to_abs(f);
+        if !self.params.is_empty() {
+            f.angle_bracketed(|f| f.list(self.params.iter(), ", "));
+        }
+        if !self.constr.is_empty() {
+            f.add(" = ");
+            f.list(self.constr.iter(), " | ");
+        }
+        f.add(";")
+    }
+}
+
+#[derive(Clone)]
+pub struct DataConstr {
+    pub ident: Ident,
+    pub params: Vec<DataConstrParam>,
+}
+
+impl fmt::Display for DataConstr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
+    }
+}
+
+impl DisplayABS for DataConstr {
+    fn to_abs(&self, f: &mut ABSFormatter) {
+        self.ident.to_abs(f);
+        if !self.params.is_empty() {
+            f.parenthesized(|f| f.list(self.params.iter(), ", "));
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct DataConstrParam {
+    pub ty: Type,
+    pub ident: Option<Ident>,
+}
+
+impl fmt::Display for DataConstrParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
+    }
+}
+
+impl DisplayABS for DataConstrParam {
+    fn to_abs(&self, f: &mut ABSFormatter) {
+        self.ty.to_abs(f);
+
+        if let Some(i) = &self.ident {
+            f.add(" ");
+            i.to_abs(f);
+        }
     }
 }
 
@@ -140,6 +228,7 @@ impl DisplayABS for InterfaceDecl {
                 |i, f| {
                     if i > 0 {
                         f.new_line();
+                        f.new_line()
                     }
                 },
                 |_, f| f.add(";"),
@@ -150,6 +239,7 @@ impl DisplayABS for InterfaceDecl {
 
 #[derive(Clone)]
 pub struct ClassDecl {
+    pub annotations: Annotations,
     pub ident: Ident,
     pub params: Vec<Param>,
     pub implements: Vec<Ident>,
@@ -169,6 +259,7 @@ impl fmt::Display for ClassDecl {
 
 impl DisplayABS for ClassDecl {
     fn to_abs(&self, f: &mut ABSFormatter) {
+        self.annotations.to_abs(f);
         f.add("class ");
         self.ident.to_abs(f);
         if !self.params.is_empty() {
@@ -181,6 +272,11 @@ impl DisplayABS for ClassDecl {
         f.add(" ");
         f.braced(|f| {
             f.list_fn(self.fields.iter(), |_, _| {}, |_, f| f.new_line());
+
+            if !self.fields.is_empty() && !self.methods.is_empty() {
+                f.new_line();
+            }
+
             if let Some(init) = &self.init {
                 init.to_abs(f);
                 f.new_line();
@@ -217,6 +313,7 @@ impl DisplayABS for ClassDecl {
 
 #[derive(Clone)]
 pub struct MethodSig {
+    pub annotations: Annotations,
     pub ret: Type,
     pub ident: Ident,
     pub params: Vec<Param>,
@@ -232,6 +329,7 @@ impl fmt::Display for MethodSig {
 
 impl DisplayABS for MethodSig {
     fn to_abs(&self, f: &mut ABSFormatter) {
+        self.annotations.to_abs(f);
         self.ret.to_abs(f);
         f.add(" ");
         self.ident.to_abs(f);
@@ -241,6 +339,7 @@ impl DisplayABS for MethodSig {
 
 #[derive(Clone)]
 pub struct Param {
+    pub annotations: Annotations,
     pub ty: Type,
     pub ident: Ident,
 }
@@ -255,6 +354,7 @@ impl fmt::Display for Param {
 
 impl DisplayABS for Param {
     fn to_abs(&self, f: &mut ABSFormatter) {
+        self.annotations.to_abs(f);
         self.ty.to_abs(f);
         f.add(" ");
         self.ident.to_abs(f);
@@ -263,6 +363,7 @@ impl DisplayABS for Param {
 
 #[derive(Clone)]
 pub struct FieldDecl {
+    pub annotations: Annotations,
     pub ty: Type,
     pub ident: Ident,
     pub init: Option<PureExpr>,
@@ -278,6 +379,7 @@ impl fmt::Display for FieldDecl {
 
 impl DisplayABS for FieldDecl {
     fn to_abs(&self, f: &mut ABSFormatter) {
+        self.annotations.to_abs(f);
         self.ty.to_abs(f);
         f.add(" ");
         self.ident.to_abs(f);

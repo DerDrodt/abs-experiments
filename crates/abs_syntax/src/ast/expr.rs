@@ -114,6 +114,18 @@ impl From<IdentExpr> for PureExpr {
     }
 }
 
+impl From<BinaryExpr> for PureExpr {
+    fn from(b: BinaryExpr) -> Self {
+        PureExpr::Operator(OperatorExpr::Binary(b))
+    }
+}
+
+impl From<DataConstrExpr> for PureExpr {
+    fn from(d: DataConstrExpr) -> Self {
+        PureExpr::DataConstr(d)
+    }
+}
+
 #[derive(Clone)]
 pub struct IdentExpr {
     pub ident: Ident,

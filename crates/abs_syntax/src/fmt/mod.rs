@@ -100,6 +100,15 @@ impl ABSFormatter {
         self.add(">");
     }
 
+    pub fn bracketed<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut ABSFormatter),
+    {
+        self.add("[");
+        f(self);
+        self.add("]");
+    }
+
     pub fn stmt<F>(&mut self, f: F)
     where
         F: FnOnce(&mut ABSFormatter),

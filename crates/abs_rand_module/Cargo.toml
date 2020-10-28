@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 abs_syntax = {path = "../abs_syntax"}
+rand = "0.7.3"

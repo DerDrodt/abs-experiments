@@ -31,8 +31,13 @@ pub fn create_ret_stmt(expr: ast::Expr) -> ast::ReturnStmt {
     ast::ReturnStmt { expr }
 }
 
-pub fn create_var_decl<S: Into<String>>(ty: ast::Type, name: S) -> ast::VarDeclStmt {
+pub fn create_var_decl<S: Into<String>>(
+    ty: ast::Type,
+    name: S,
+    annotations: ast::Annotations,
+) -> ast::VarDeclStmt {
     ast::VarDeclStmt {
+        annotations,
         ty,
         ident: super::ident(name),
         init: None,
@@ -43,8 +48,10 @@ pub fn create_var_decl_init<S: Into<String>>(
     ty: ast::Type,
     name: S,
     init: ast::Expr,
+    annotations: ast::Annotations,
 ) -> ast::VarDeclStmt {
     ast::VarDeclStmt {
+        annotations,
         ty,
         ident: super::ident(name),
         init: Some(init),

@@ -1,10 +1,12 @@
 use abs_syntax::ast;
 
+mod annotation;
 mod expr;
 mod lit;
 mod stmt;
 pub mod ty;
 
+pub use annotation::*;
 pub use expr::*;
 pub use lit::*;
 pub use stmt::*;
@@ -93,7 +95,54 @@ pub fn start_interface_decl<S: Into<String>>(name: S) -> InterfaceBuilder {
     InterfaceBuilder::new(name.into())
 }
 
+pub struct DataTypeBuilder {
+    ident: ast::Ident,
+    params: Vec<ast::Ident>,
+    constr: Vec<ast::DataConstr>,
+}
+
+impl DataTypeBuilder {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        DataTypeBuilder {
+            ident: ident(name),
+            params: Vec::new(),
+            constr: Vec::new(),
+        }
+    }
+
+    pub fn add_param<S: Into<String>>(&mut self, p: S) {
+        self.params.push(ident(p));
+    }
+
+    pub fn add_constr(&mut self, c: ast::DataConstr) {
+        self.constr.push(c)
+    }
+
+    pub fn with_param<S: Into<String>>(mut self, p: S) -> Self {
+        self.add_param(p);
+        self
+    }
+
+    pub fn with_const(mut self, c: ast::DataConstr) -> Self {
+        self.add_constr(c);
+        self
+    }
+
+    pub fn complete(self) -> ast::DataTypeDecl {
+        ast::DataTypeDecl {
+            ident: self.ident,
+            params: self.params,
+            constr: self.constr,
+        }
+    }
+}
+
+pub fn start_data_type<S: Into<String>>(name: S) -> DataTypeBuilder {
+    DataTypeBuilder::new(name)
+}
+
 pub struct ClassDeclBuilder {
+    annotations: ast::Annotations,
     ident: ast::Ident,
     params: Vec<ast::Param>,
     implements: Vec<ast::Ident>,
@@ -106,6 +155,7 @@ pub struct ClassDeclBuilder {
 impl ClassDeclBuilder {
     pub fn new(name: String) -> Self {
         Self {
+            annotations: ast::Annotations::default(),
             ident: ident(name),
             params: vec![],
             implements: vec![],
@@ -114,6 +164,10 @@ impl ClassDeclBuilder {
             recover: vec![],
             methods: vec![],
         }
+    }
+
+    pub fn add_annotation(&mut self, a: ast::Annotation) {
+        self.annotations.push(a)
     }
 
     pub fn add_param(&mut self, p: ast::Param) {
@@ -138,6 +192,11 @@ impl ClassDeclBuilder {
 
     pub fn add_method(&mut self, p: ast::MethodDecl) {
         self.methods.push(p);
+    }
+
+    pub fn with_annotation(mut self, a: ast::Annotation) -> Self {
+        self.add_annotation(a);
+        self
     }
 
     pub fn with_param(mut self, p: ast::Param) -> Self {
@@ -172,6 +231,7 @@ impl ClassDeclBuilder {
 
     pub fn complete(self) -> ast::ClassDecl {
         ast::ClassDecl {
+            annotations: self.annotations,
             ident: self.ident,
             params: self.params,
             implements: self.implements,
@@ -187,7 +247,46 @@ pub fn start_class_decl<S: Into<String>>(name: S) -> ClassDeclBuilder {
     ClassDeclBuilder::new(name.into())
 }
 
+pub struct DataConstrBuilder {
+    ident: ast::Ident,
+    params: Vec<ast::DataConstrParam>,
+}
+
+impl DataConstrBuilder {
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        DataConstrBuilder {
+            ident: ident(name),
+            params: Vec::new(),
+        }
+    }
+
+    pub fn add_param(&mut self, p: ast::DataConstrParam) {
+        self.params.push(p);
+    }
+
+    pub fn with_param(mut self, p: ast::DataConstrParam) -> Self {
+        self.add_param(p);
+        self
+    }
+
+    pub fn complete(self) -> ast::DataConstr {
+        ast::DataConstr {
+            ident: self.ident,
+            params: self.params,
+        }
+    }
+}
+
+pub fn start_data_constr<S: Into<String>>(name: S) -> DataConstrBuilder {
+    DataConstrBuilder::new(name)
+}
+
+pub fn create_data_constr_param(ty: ast::Type) -> ast::DataConstrParam {
+    ast::DataConstrParam { ty, ident: None }
+}
+
 pub struct MethodSigBuilder {
+    annotations: ast::Annotations,
     ret: Option<ast::Type>,
     ident: ast::Ident,
     params: Vec<ast::Param>,
@@ -196,10 +295,15 @@ pub struct MethodSigBuilder {
 impl MethodSigBuilder {
     pub fn new(name: String) -> Self {
         Self {
+            annotations: ast::Annotations::default(),
             ret: None,
             ident: ident(name),
             params: vec![],
         }
+    }
+
+    pub fn add_annotation(&mut self, a: ast::Annotation) {
+        self.annotations.push(a)
     }
 
     pub fn add_ret(&mut self, ret: ast::Type) {
@@ -208,6 +312,11 @@ impl MethodSigBuilder {
 
     pub fn add_param(&mut self, param: ast::Param) {
         self.params.push(param)
+    }
+
+    pub fn with_annotation(mut self, a: ast::Annotation) -> Self {
+        self.add_annotation(a);
+        self
     }
 
     pub fn with_ret(mut self, ret: ast::Type) -> Self {
@@ -222,6 +331,7 @@ impl MethodSigBuilder {
 
     pub fn complete(self) -> ast::MethodSig {
         ast::MethodSig {
+            annotations: self.annotations,
             ret: self.ret.unwrap(),
             ident: self.ident,
             params: self.params,
@@ -233,15 +343,25 @@ pub fn start_method_sig<S: Into<String>>(name: S) -> MethodSigBuilder {
     MethodSigBuilder::new(name.into())
 }
 
-pub fn create_param<S: Into<String>>(ty: ast::Type, name: S) -> ast::Param {
+pub fn create_param<S: Into<String>>(
+    ty: ast::Type,
+    name: S,
+    annotations: ast::Annotations,
+) -> ast::Param {
     ast::Param {
+        annotations,
         ty,
         ident: ident(name.into()),
     }
 }
 
-pub fn create_field<S: Into<String>>(ty: ast::Type, name: S) -> ast::FieldDecl {
+pub fn create_field<S: Into<String>>(
+    ty: ast::Type,
+    name: S,
+    annotations: ast::Annotations,
+) -> ast::FieldDecl {
     ast::FieldDecl {
+        annotations,
         ty,
         ident: ident(name.into()),
         init: None,
@@ -252,8 +372,10 @@ pub fn create_field_init<S: Into<String>>(
     ty: ast::Type,
     name: S,
     init: ast::PureExpr,
+    annotations: ast::Annotations,
 ) -> ast::FieldDecl {
     ast::FieldDecl {
+        annotations,
         ty,
         ident: ident(name.into()),
         init: Some(init),

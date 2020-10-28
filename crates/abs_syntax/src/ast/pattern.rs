@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::fmt::ABSFormatter;
+
 use super::DisplayABS;
 
 #[derive(Clone)]
@@ -10,10 +12,12 @@ pub struct CaseBranch<K> {
 
 impl<K> fmt::Display for CaseBranch<K>
 where
-    K: fmt::Display,
+    K: DisplayABS,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} => {}", self.pattern, self.right)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -32,8 +36,10 @@ where
 pub struct Pattern;
 
 impl fmt::Display for Pattern {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 

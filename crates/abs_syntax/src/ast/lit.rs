@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::fmt::ABSFormatter;
+
 use super::DisplayABS;
 
 #[derive(Clone)]
@@ -9,7 +11,9 @@ pub struct Literal {
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.s, f)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 

@@ -75,11 +75,9 @@ pub enum ModuleItem {
 
 impl fmt::Display for ModuleItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ModuleItem::InterfaceDecl(i) => fmt::Display::fmt(i, f),
-            ModuleItem::ClassDecl(c) => fmt::Display::fmt(c, f),
-            ModuleItem::MainBlock(b) => fmt::Display::fmt(b, f),
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -120,29 +118,9 @@ pub struct InterfaceDecl {
 
 impl fmt::Display for InterfaceDecl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut extends = String::new();
-
-        for (i, e) in self.extends.iter().enumerate() {
-            if i == 0 {
-                extends.push_str(" extends ");
-            }
-            if i > 0 {
-                extends.push_str(", ");
-            }
-            extends.push_str(&e.to_string());
-        }
-
-        let mut sigs = String::new();
-
-        for s in &self.sigs {
-            sigs.push_str("\n\t");
-            sigs.push_str(&s.to_string());
-            sigs.push_str(";")
-        }
-
-        sigs.push('\n');
-
-        write!(f, "interface {}{} {{{}}}", self.ident, extends, sigs)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -183,73 +161,9 @@ pub struct ClassDecl {
 
 impl fmt::Display for ClassDecl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut params = String::new();
-        if !self.params.is_empty() {
-            params.push_str("(");
-            for (i, p) in self.params.iter().enumerate() {
-                if i > 0 {
-                    params.push_str(", ");
-                }
-                params.push_str(&p.to_string())
-            }
-            params.push_str(")")
-        }
-
-        let mut implements = String::new();
-        if !self.implements.is_empty() {
-            implements.push_str(" implements ");
-            for (i, p) in self.implements.iter().enumerate() {
-                if i > 0 {
-                    implements.push_str(", ");
-                }
-                implements.push_str(&p.to_string())
-            }
-        }
-
-        let fields = if self.fields.is_empty() {
-            String::new()
-        } else {
-            let mut s = String::new();
-            for f in &self.fields {
-                s.push_str(&format!("\t{}\n", f));
-            }
-            s
-        };
-
-        let init = match &self.init {
-            Some(i) => format!("\n{}\n", i),
-            _ => String::new(),
-        };
-
-        let recover = if self.recover.is_empty() {
-            String::new()
-        } else {
-            let mut s = "recover {{\n".to_string();
-            for b in &self.recover {
-                s.push_str(&format!("\t{}\n", b));
-            }
-            s.push_str("}}\n");
-            s
-        };
-
-        let methods = if self.methods.is_empty() {
-            String::new()
-        } else {
-            let mut s = String::new();
-            for (i, m) in self.methods.iter().enumerate() {
-                if i > 0 {
-                    s.push_str("\n\n");
-                }
-                s.push_str(&m.to_string());
-            }
-            s
-        };
-
-        write!(
-            f,
-            "class {}{}{} {{\n{}{}{}{}}}",
-            self.ident, params, implements, fields, init, recover, methods
-        )
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -310,15 +224,9 @@ pub struct MethodSig {
 
 impl fmt::Display for MethodSig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut params = String::new();
-        for (i, p) in self.params.iter().enumerate() {
-            if i > 0 {
-                params.push_str(", ");
-            }
-            params.push_str(&p.to_string());
-        }
-
-        write!(f, "\t{} {}({})", self.ret, self.ident, params)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -339,7 +247,9 @@ pub struct Param {
 
 impl fmt::Display for Param {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.ty, self.ident)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -360,11 +270,9 @@ pub struct FieldDecl {
 
 impl fmt::Display for FieldDecl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let init = match &self.init {
-            Some(e) => format!(" = {}", e),
-            _ => "".to_string(),
-        };
-        write!(f, "{} {}{};", self.ty, self.ident, init)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -389,7 +297,9 @@ pub struct MethodDecl {
 
 impl fmt::Display for MethodDecl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.sig, self.body)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 

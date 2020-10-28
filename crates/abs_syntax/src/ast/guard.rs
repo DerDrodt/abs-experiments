@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::fmt::ABSFormatter;
+
 use super::{DisplayABS, Ident, PureExpr};
 
 #[derive(Clone)]
@@ -12,18 +14,9 @@ pub enum Guard {
 
 impl fmt::Display for Guard {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Guard::Claim { this, ident } => {
-                if *this {
-                    write!(f, "this.{}?", ident)
-                } else {
-                    write!(f, "{}?", ident)
-                }
-            }
-            Guard::Expr(e) => fmt::Display::fmt(e, f),
-            Guard::And(l, r) => write!(f, "{} & {}", l, r),
-            Guard::Duration(min, max) => write!(f, "duration({},{})", min, max),
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 

@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::fmt::ABSFormatter;
+
 use super::{CaseBranch, DisplayABS, Expr, Guard, Ident, PureExpr, Type};
 
 #[derive(Clone)]
@@ -23,23 +25,9 @@ pub enum Stmt {
 
 impl fmt::Display for Stmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Stmt::Skip => fmt::Display::fmt("skip;", f),
-            Stmt::VarDecl(s) => fmt::Display::fmt(s, f),
-            Stmt::Assign(s) => fmt::Display::fmt(s, f),
-            Stmt::Expr(s) => fmt::Display::fmt(s, f),
-            Stmt::Assert(s) => fmt::Display::fmt(s, f),
-            Stmt::Await(s) => fmt::Display::fmt(s, f),
-            Stmt::Suspend => fmt::Display::fmt("suspend;", f),
-            Stmt::Throw(s) => fmt::Display::fmt(s, f),
-            Stmt::Return(s) => fmt::Display::fmt(s, f),
-            Stmt::Block(s) => fmt::Display::fmt(s, f),
-            Stmt::If(s) => fmt::Display::fmt(s, f),
-            Stmt::Switch(s) => fmt::Display::fmt(s, f),
-            Stmt::While(s) => fmt::Display::fmt(s, f),
-            Stmt::Foreach(s) => fmt::Display::fmt(s, f),
-            Stmt::TryCatchFinally(s) => fmt::Display::fmt(s, f),
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -116,11 +104,9 @@ pub struct VarDeclStmt {
 
 impl fmt::Display for VarDeclStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let init = match &self.init {
-            Some(e) => format!(" = {}", e),
-            None => String::new(),
-        };
-        write!(f, "{} {}{};", self.ty, self.ident, init)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -146,11 +132,9 @@ pub struct AssignStmt {
 
 impl fmt::Display for AssignStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.this {
-            write!(f, "this.{} = {};", self.ident, self.expr)
-        } else {
-            write!(f, "{} = {};", self.ident, self.expr)
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -173,7 +157,9 @@ pub struct ExprStmt {
 
 impl fmt::Display for ExprStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{};", self.expr)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -191,7 +177,9 @@ pub struct AssertStmt {
 
 impl fmt::Display for AssertStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "assert {};", self.condition)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -210,7 +198,9 @@ pub struct AwaitStmt {
 
 impl fmt::Display for AwaitStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "await {};", self.guard)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -229,7 +219,9 @@ pub struct ReturnStmt {
 
 impl fmt::Display for ReturnStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "return {};", self.expr)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -248,7 +240,9 @@ pub struct ThrowStmt {
 
 impl fmt::Display for ThrowStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "throw {};", self.expr)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -269,11 +263,9 @@ pub struct IfStmt {
 
 impl fmt::Display for IfStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let r#else = match &self.r#else {
-            Some(s) => format!(" else {}", s),
-            _ => String::new(),
-        };
-        write!(f, "if ({}) {}{}", self.condition, self.then, r#else)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -297,17 +289,9 @@ pub struct SwitchStmt {
 
 impl fmt::Display for SwitchStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut branches = String::new();
-
-        for (i, b) in self.branches.iter().enumerate() {
-            if i > 0 {
-                branches.push_str("\n")
-            }
-            branches.push('\t');
-            branches.push_str(&b.to_string());
-        }
-
-        write!(f, "switch {} {{{}}}", self.expr, branches)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -337,17 +321,9 @@ pub struct Block {
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut stmts = String::new();
-
-        for (i, s) in self.stmts.iter().enumerate() {
-            if i > 0 {
-                stmts.push_str("\n")
-            }
-            stmts.push('\t');
-            stmts.push_str(&s.to_string());
-        }
-
-        write!(f, "{{{}}}", stmts)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -376,7 +352,9 @@ pub struct WhileStmt {
 
 impl fmt::Display for WhileStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "while ({}) {}", self.condition, self.body)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -398,17 +376,15 @@ pub struct ForeachStmt {
 
 impl fmt::Display for ForeachStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "foreach ({} in {}) {}",
-            self.loop_var, self.iter, self.body
-        )
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
 impl DisplayABS for ForeachStmt {
     fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
-        f.add("while ");
+        f.add("foreach ");
         f.parenthesized(|f| {
             self.loop_var.to_abs(f);
             f.add(" in ");
@@ -428,26 +404,9 @@ pub struct TryCatchFinallyStmt {
 
 impl fmt::Display for TryCatchFinallyStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut catch_branches = String::new();
-
-        for (i, b) in self.catch_branches.iter().enumerate() {
-            if i > 0 {
-                catch_branches.push_str("\n")
-            }
-            catch_branches.push('\t');
-            catch_branches.push_str(&b.to_string());
-        }
-
-        let finally = match &self.finally {
-            Some(s) => format!(" finally {}", s),
-            _ => String::new(),
-        };
-
-        write!(
-            f,
-            "try {} catch {{{}}}{}",
-            self.r#try, catch_branches, finally
-        )
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 

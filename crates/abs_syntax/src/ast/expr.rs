@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::add_fmt;
+use crate::{add_fmt, fmt::ABSFormatter};
 
 use super::{CaseBranch, DisplayABS, Ident, Literal, Type};
 #[derive(Clone)]
@@ -11,10 +11,9 @@ pub enum Expr {
 
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Expr::Pure(e) => fmt::Display::fmt(e, f),
-            Expr::Eff(e) => fmt::Display::fmt(e, f),
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -122,7 +121,9 @@ pub struct IdentExpr {
 
 impl fmt::Display for IdentExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.ident, f)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -142,11 +143,9 @@ pub struct LetExpr {
 
 impl fmt::Display for LetExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "let {} {} = {}\n\tin {}",
-            self.ty, self.ident, self.value, self.inner
-        )
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -174,16 +173,9 @@ pub struct DataConstrExpr {
 
 impl fmt::Display for DataConstrExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut args = String::new();
-
-        for (i, a) in self.args.iter().enumerate() {
-            if i > 0 {
-                args.push_str(", ");
-            }
-            args.push_str(&a.to_string());
-        }
-
-        write!(f, "{}({})", self.ident, args)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -202,16 +194,9 @@ pub struct FnAppExpr {
 
 impl fmt::Display for FnAppExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut args = String::new();
-
-        for (i, a) in self.args.iter().enumerate() {
-            if i > 0 {
-                args.push_str(", ");
-            }
-            args.push_str(&a.to_string());
-        }
-
-        write!(f, "{}({})", self.ident, args)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -226,13 +211,15 @@ impl DisplayABS for FnAppExpr {
 pub struct ParFnAppExpr {}
 
 impl fmt::Display for ParFnAppExpr {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
 impl DisplayABS for ParFnAppExpr {
-    fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
+    fn to_abs(&self, _f: &mut crate::fmt::ABSFormatter) {
         todo!()
     }
 }
@@ -246,11 +233,9 @@ pub struct WhenExpr {
 
 impl fmt::Display for WhenExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "when {} then {} else {}",
-            self.condition, self.then, self.r#else
-        )
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -273,16 +258,9 @@ pub struct CaseExpr {
 
 impl fmt::Display for CaseExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut branches = String::new();
-
-        for (i, b) in self.branches.iter().enumerate() {
-            if i > 0 {
-                branches.push_str("| ");
-            }
-            branches.push_str(&b.to_string());
-        }
-
-        write!(f, "case {} {{{}}}", self.expr, branches)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -313,7 +291,9 @@ pub struct TypeCheckExpr {
 
 impl fmt::Display for TypeCheckExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} implements {}", self.expr, self.ty)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -333,7 +313,9 @@ pub struct TypeCastExpr {
 
 impl fmt::Display for TypeCastExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} as {}", self.expr, self.ty)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -353,10 +335,9 @@ pub enum OperatorExpr {
 
 impl fmt::Display for OperatorExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            OperatorExpr::Unary(u) => fmt::Display::fmt(u, f),
-            OperatorExpr::Binary(b) => fmt::Display::fmt(b, f),
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -377,7 +358,9 @@ pub struct UnaryExpr {
 
 impl fmt::Display for UnaryExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.op, self.expr)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -412,7 +395,9 @@ pub struct BinaryExpr {
 
 impl fmt::Display for BinaryExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.left, self.op, self.right)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -473,13 +458,9 @@ pub enum EffExpr {
 
 impl fmt::Display for EffExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EffExpr::New(e) => fmt::Display::fmt(e, f),
-            EffExpr::SyncCall(e) => fmt::Display::fmt(e, f),
-            EffExpr::AsyncCall(e) => fmt::Display::fmt(e, f),
-            EffExpr::Get(e) => fmt::Display::fmt(e, f),
-            EffExpr::Await(e) => fmt::Display::fmt(e, f),
-        }
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -510,17 +491,9 @@ pub struct NewExpr {
 
 impl fmt::Display for NewExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let local = if self.local { "local " } else { "" };
-        let mut args = String::new();
-
-        for (i, a) in self.args.iter().enumerate() {
-            if i > 0 {
-                args.push_str(", ");
-            }
-            args.push_str(&a.to_string());
-        }
-
-        write!(f, "new {} {}({})", local, self.ty, args)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -544,15 +517,9 @@ pub struct SyncCallExpr {
 
 impl fmt::Display for SyncCallExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut args = String::new();
-
-        for (i, a) in self.args.iter().enumerate() {
-            if i > 0 {
-                args.push_str(", ");
-            }
-            args.push_str(&a.to_string());
-        }
-        write!(f, "{}.{}({})", self.callee, self.method, args)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -574,15 +541,9 @@ pub struct AsyncCallExpr {
 
 impl fmt::Display for AsyncCallExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut args = String::new();
-
-        for (i, a) in self.args.iter().enumerate() {
-            if i > 0 {
-                args.push_str(", ");
-            }
-            args.push_str(&a.to_string());
-        }
-        write!(f, "{}!{}({})", self.callee, self.method, args)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -602,7 +563,9 @@ pub struct GetExpr {
 
 impl fmt::Display for GetExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.get", self.expr)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 
@@ -620,7 +583,9 @@ pub struct AwaitExpr {
 
 impl fmt::Display for AwaitExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "await {}", self.call)
+        let mut af = ABSFormatter::new();
+        self.to_abs(&mut af);
+        fmt::Display::fmt(&af.abs_code(), f)
     }
 }
 

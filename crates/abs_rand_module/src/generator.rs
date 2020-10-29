@@ -73,13 +73,14 @@ impl RandGenerator {
             builder.add_stmt(self.generate_null_check_if());
         }
 
-        builder.add_stmt(self.generate_ret(gen::ty::simple_ty("I")));
+        builder.add_stmt(self.generate_ret());
 
         builder.complete()
     }
 
     pub fn generate_block(&mut self) -> ast::Block {
         let size = chance::exp_rand_int(self.opts.avg_block_size as f64);
+
         self.generate_sized_block(size).complete()
     }
 
@@ -98,7 +99,7 @@ impl RandGenerator {
         if self.scope.depth() < self.opts.max_depth as usize
             && chance::chance(self.opts.branch_rate)
         {
-            if !self.has_null_check_if && chance::chance(0.3) {
+            if !self.has_null_check_if && self.scope.depth() == 0 && chance::chance(0.3) {
                 self.generate_null_check_if()
             } else {
                 self.generate_if()
@@ -110,8 +111,11 @@ impl RandGenerator {
         }
     }
 
-    fn generate_ret(&mut self, ty: ast::Type) -> ast::Stmt {
-        let expr = self.generate_pure_exp(ty).into();
+    fn generate_ret(&mut self) -> ast::Stmt {
+        let expr = ast::PureExpr::Ident(ast::IdentExpr {
+            ident: gen::ident("i"),
+        })
+        .into();
         ast::ReturnStmt { expr }.into()
     }
 
@@ -392,7 +396,7 @@ impl RandGenerator {
     }
 
     fn generate_unary_minus(&mut self, ty: ast::Type) -> ast::PureExpr {
-        if ty.is_int() && chance::chance(0.2) {
+        if ty.is_int() && chance::chance(0.0) {
             ast::UnaryExpr {
                 op: ast::UnaryOp::Minus,
                 expr: self.generate_atom(ty).into(),
@@ -516,9 +520,16 @@ impl Scope {
 
     pub fn of_type(&self, ty: ast::Type) -> impl Iterator<Item = ScopeEntry> {
         let name = &ty.ident.str;
+        let is_fut = ty.is_fut();
+        let arg0 = ty.args.get(0).map(|t| &t.ident.str);
+
         let v: Vec<ScopeEntry> = self
             .iter()
-            .filter(move |e| e.kind != EntryKind::Fn && e.is_of_ty(name))
+            .filter(move |e| {
+                e.kind != EntryKind::Fn
+                    && e.is_of_ty(name)
+                    && (!is_fut || &e.ty.args[0].ident.str == arg0.unwrap())
+            })
             .collect();
         v.into_iter()
     }
@@ -620,8 +631,8 @@ enum EntryKind {
     Fn,
 }
 
-fn rand_char() -> char {
-    let mut range = if chance::chance(0.5) {
+fn rand_char(i: u32) -> char {
+    let mut range = if i == 0 || chance::chance(0.5) {
         'a'..='z'
     } else {
         'A'..='Z'
@@ -632,5 +643,5 @@ fn rand_char() -> char {
 }
 
 fn generate_name() -> String {
-    (0..).take(6).map(|_| rand_char()).collect()
+    (0..).take(6).map(|i| rand_char(i)).collect()
 }

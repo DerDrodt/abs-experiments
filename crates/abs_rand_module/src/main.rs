@@ -60,6 +60,8 @@ fn gen_mock_module(opts: Options) -> ast::Module {
         builder.add_child(class_generated(&name, opts));
     }
 
+    builder.add_child(ast::ModuleItem::MainBlock(ast::Block { stmts: Vec::new() }));
+
     builder.complete()
 }
 
@@ -184,7 +186,7 @@ fn class_generated(name: &str, opts: Options) -> ast::ClassDecl {
             gen::empty_annos(),
         ))
         .with_field(gen::create_field(
-            ty::create_fut(ty::create_int()),
+            ty::create_fut(ty::create_bool()),
             "ffb",
             gen::empty_annos(),
         ))
@@ -263,14 +265,13 @@ pub struct Options {
     pub target: Target,
 }
 
-const NUM_RAND_MODULES: u32 = 100;
 const NUM_RAND_CLASSES: u32 = 100;
-const MAX_DEPTH: u8 = 3;
-const BRANCH_RATE: f64 = 0.2;
+const MAX_DEPTH: u8 = 2;
+const BRANCH_RATE: f64 = 0.1;
 const DECLARE_TO_ASSIGN: f64 = 0.3;
 const ELSE_RATIO: f64 = 0.7;
-const AVG_METH_BODY_SIZE: u32 = 10;
-const AVG_BLOCK_SIZE: u32 = 4;
+const AVG_METH_BODY_SIZE: u32 = 3;
+const AVG_BLOCK_SIZE: u32 = 2;
 
 impl Default for Options {
     fn default() -> Self {
@@ -290,14 +291,13 @@ impl Default for Options {
 fn main() {
     clear_out().expect("Err while clearing out dir");
 
-    let step = 1 + NUM_RAND_CLASSES / NUM_RAND_MODULES;
-
-    for i in 0..NUM_RAND_MODULES {
+    for i in 1..=NUM_RAND_CLASSES {
         let mut opts = Options::default();
-        opts.num_rand_classes = i * step;
+        opts.num_rand_classes = i;
 
-        let path = format!("./out/generated-{}.abs", i);
-
+        let path = format!("./out/generated-cb-{}.abs", i);
+        write_module(&path, opts).expect("An error occurred while writing the module");
+        let path = format!("./out/generated-nc-{}.abs", i);
         write_module(&path, opts).expect("An error occurred while writing the module");
     }
 }

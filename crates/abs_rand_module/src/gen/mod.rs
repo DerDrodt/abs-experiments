@@ -11,7 +11,7 @@ pub use expr::*;
 pub use lit::*;
 pub use stmt::*;
 
-fn ident<S: Into<String>>(str: S) -> ast::Ident {
+pub fn ident<S: Into<String>>(str: S) -> ast::Ident {
     ast::Ident { str: str.into() }
 }
 

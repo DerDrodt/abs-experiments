@@ -55,3 +55,11 @@ pub fn create_bool() -> ast::Type {
 pub fn create_fut(ty: ast::Type) -> ast::Type {
     start_type("Fut").with_args(ty).complete()
 }
+
+pub fn create_i() -> ast::Type {
+    simple_ty("I")
+}
+
+pub fn create_j() -> ast::Type {
+    simple_ty("J")
+}

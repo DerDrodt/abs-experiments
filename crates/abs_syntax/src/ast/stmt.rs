@@ -278,6 +278,7 @@ impl DisplayABS for IfStmt {
         f.add(" ");
         self.then.to_abs(f);
         if let Some(e) = &self.r#else {
+            f.add(" else ");
             e.to_abs(f);
         }
     }

@@ -114,9 +114,22 @@ impl From<IdentExpr> for PureExpr {
     }
 }
 
+impl From<Ident> for PureExpr {
+    fn from(e: Ident) -> Self {
+        let e: PureExpr = e.into();
+        e.into()
+    }
+}
+
 impl From<BinaryExpr> for PureExpr {
     fn from(b: BinaryExpr) -> Self {
         PureExpr::Operator(OperatorExpr::Binary(b))
+    }
+}
+
+impl From<UnaryExpr> for PureExpr {
+    fn from(b: UnaryExpr) -> Self {
+        PureExpr::Operator(OperatorExpr::Unary(b))
     }
 }
 
@@ -142,6 +155,12 @@ impl fmt::Display for IdentExpr {
 impl DisplayABS for IdentExpr {
     fn to_abs(&self, f: &mut crate::fmt::ABSFormatter) {
         self.ident.to_abs(f)
+    }
+}
+
+impl From<Ident> for IdentExpr {
+    fn from(i: Ident) -> Self {
+        IdentExpr { ident: i }
     }
 }
 
@@ -491,6 +510,30 @@ impl DisplayABS for EffExpr {
 impl From<NewExpr> for EffExpr {
     fn from(e: NewExpr) -> Self {
         EffExpr::New(e)
+    }
+}
+
+impl From<GetExpr> for EffExpr {
+    fn from(e: GetExpr) -> Self {
+        EffExpr::Get(e)
+    }
+}
+
+impl From<SyncCallExpr> for EffExpr {
+    fn from(e: SyncCallExpr) -> Self {
+        EffExpr::SyncCall(e)
+    }
+}
+
+impl From<AsyncCallExpr> for EffExpr {
+    fn from(e: AsyncCallExpr) -> Self {
+        EffExpr::AsyncCall(e)
+    }
+}
+
+impl From<AwaitExpr> for EffExpr {
+    fn from(e: AwaitExpr) -> Self {
+        EffExpr::Await(e)
     }
 }
 

@@ -20,7 +20,9 @@ pub fn plot(
     let root = BitMapBackend::new("absc_crowbar.png", (640, 480)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let max_y = max(nullable.max_time().unwrap(), crowbar.max_time().unwrap());
+    let mut max_y = max(nullable.max_time().unwrap(), crowbar.max_time().unwrap()).as_millis();
+    // Add padding
+    max_y += max_y / 10;
 
     // We limit to 20, as Crowbar fails roughly at that point
     let max_x = max(
@@ -32,7 +34,7 @@ pub fn plot(
         .margin(15)
         .x_label_area_size(30)
         .y_label_area_size(60)
-        .build_cartesian_2d(1..max_x, 0..max_y.as_millis())?;
+        .build_cartesian_2d(1..max_x, 0..max_y)?;
 
     chart
         .configure_mesh()
@@ -63,7 +65,13 @@ pub fn plot_nullable(nullable: &mut BenchmarkResult) -> Result<(), Box<dyn std::
     let root = BitMapBackend::new("absc_only.png", (640, 480)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let max_y = nullable.max_time().unwrap();
+    let mut max_y = nullable.max_time().unwrap().as_millis();
+    max_y += max_y / 5;
+
+    let mut min_y = nullable.min_time().unwrap().as_millis();
+    min_y -= max_y / 5;
+
+    println!("min_y: {}, max_y:{}", min_y, max_y);
 
     let max_x = nullable.max_num().unwrap();
 
@@ -71,7 +79,7 @@ pub fn plot_nullable(nullable: &mut BenchmarkResult) -> Result<(), Box<dyn std::
         .margin(15)
         .x_label_area_size(30)
         .y_label_area_size(60)
-        .build_cartesian_2d(1..max_x, 0..max_y.as_millis())?;
+        .build_cartesian_2d(1..max_x, min_y..max_y)?;
 
     chart
         .configure_mesh()

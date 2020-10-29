@@ -13,6 +13,7 @@ use std::{
 
 mod plot;
 
+#[derive(Clone)]
 pub struct Run {
     pub duration: Duration,
     pub id: u32,
@@ -37,11 +38,15 @@ impl Run {
 
 pub struct BenchmarkResult {
     pub runs: Vec<Run>,
+    is_sorted: bool,
 }
 
 impl BenchmarkResult {
     fn new() -> Self {
-        Self { runs: Vec::new() }
+        Self {
+            runs: Vec::new(),
+            is_sorted: false,
+        }
     }
 
     fn size(&self) -> usize {
@@ -63,6 +68,7 @@ impl BenchmarkResult {
     }
 
     fn push(&mut self, r: Run) {
+        self.is_sorted = false;
         self.runs.push(r)
     }
 
@@ -70,12 +76,37 @@ impl BenchmarkResult {
         self.runs.iter().map(|r| r.duration).max()
     }
 
+    fn min_time(&self) -> Option<Duration> {
+        self.runs.iter().map(|r| r.duration).min()
+    }
+
     fn max_num(&self) -> Option<u32> {
         self.runs.iter().map(|r| r.id).max()
     }
 
+    fn sort(&mut self) {
+        if !self.is_sorted {
+            self.runs.sort_by(|r1, r2| r1.cmp_num(r2));
+            self.is_sorted = true;
+        }
+    }
+
+    fn take(&mut self, n: usize) -> BenchmarkResult {
+        self.sort();
+        let runs = self
+            .runs
+            .iter()
+            .take(n)
+            .map(|r| r.clone())
+            .collect::<Vec<Run>>();
+        BenchmarkResult {
+            runs,
+            is_sorted: true,
+        }
+    }
+
     fn to_points(&mut self) -> Vec<(u32, u128)> {
-        self.runs.sort_by(|r1, r2| r1.cmp_num(r2));
+        self.sort();
         self.runs.iter().map(Run::to_point).collect()
     }
 
@@ -157,6 +188,8 @@ fn main() -> io::Result<()> {
         }
     }
 
+    let mut nullable_first_20 = nullable.take(20);
+
     println!("\n=== Crowbar results ===");
     println!(
         "Number of runs: {}\nAverage time: {}\nMedian time: {}",
@@ -165,7 +198,15 @@ fn main() -> io::Result<()> {
         crowbar.median()
     );
 
-    println!("\n=== Nullable results ===");
+    println!("\n=== Nullable results for the first 20 ===");
+    println!(
+        "Number of runs: {}\nAverage time: {}\nMedian time: {}",
+        nullable_first_20.size(),
+        nullable_first_20.avg(),
+        nullable_first_20.median()
+    );
+
+    println!("\n=== Nullable results for all 100 ===");
     println!(
         "Number of runs: {}\nAverage time: {}\nMedian time: {}",
         nullable.size(),
@@ -173,7 +214,7 @@ fn main() -> io::Result<()> {
         nullable.median()
     );
 
-    plot::plot(&mut nullable, &mut crowbar).unwrap();
+    plot::plot(&mut nullable_first_20, &mut crowbar).unwrap();
     plot::plot_nullable(&mut nullable).unwrap();
 
     Ok(())

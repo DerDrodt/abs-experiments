@@ -10,7 +10,7 @@ use gen::ty;
 use generator::RandGenerator;
 
 mod chance;
-mod gen;
+pub mod gen;
 mod generator;
 
 #[derive(Debug, Copy, Clone)]
@@ -265,7 +265,7 @@ pub struct Options {
     pub target: Target,
 }
 
-const NUM_RAND_CLASSES: u32 = 100;
+const NUM_RAND_CLASSES: u32 = 300;
 const MAX_DEPTH: u8 = 2;
 const BRANCH_RATE: f64 = 0.1;
 const DECLARE_TO_ASSIGN: f64 = 0.3;
@@ -283,7 +283,7 @@ impl Default for Options {
             else_ratio: ELSE_RATIO,
             avg_meth_body_size: AVG_METH_BODY_SIZE,
             avg_block_size: AVG_BLOCK_SIZE,
-            target: Target::NullableExtension,
+            target: Target::Crowbar,
         }
     }
 }
@@ -294,9 +294,11 @@ fn main() {
     for i in 1..=NUM_RAND_CLASSES {
         let mut opts = Options::default();
         opts.num_rand_classes = i;
-
-        let path = format!("./out/generated-cb-{}.abs", i);
-        write_module(&path, opts).expect("An error occurred while writing the module");
+        if i <= 20 {
+            let path = format!("./out/generated-cb-{}.abs", i);
+            write_module(&path, opts).expect("An error occurred while writing the module");
+        }
+        opts.target = Target::NullableExtension;
         let path = format!("./out/generated-nc-{}.abs", i);
         write_module(&path, opts).expect("An error occurred while writing the module");
     }

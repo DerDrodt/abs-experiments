@@ -50,6 +50,6 @@ pub fn create_non_null_ret_anno(target: Target) -> ast::Annotation {
             )
             .into(),
         ),
-        Target::NullableExtension => create_nullable_non_null(),
+        Target::NullableExtension | Target::Location => create_nullable_non_null(),
     }
 }

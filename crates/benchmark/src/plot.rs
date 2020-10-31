@@ -54,6 +54,7 @@ pub fn plot(
 
     chart
         .configure_series_labels()
+        .position(SeriesLabelPosition::UpperLeft)
         .background_style(&WHITE.mix(0.8))
         .border_style(&BLACK)
         .draw()?;
@@ -94,6 +95,51 @@ pub fn plot_nullable(nullable: &mut BenchmarkResult) -> Result<(), Box<dyn std::
     .background_style(&WHITE.mix(0.8))
     .border_style(&BLACK)
     .draw()?; */
+
+    Ok(())
+}
+
+pub fn plot_loc(
+    new: &mut BenchmarkResult,
+    old: &mut BenchmarkResult,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = BitMapBackend::new("loc.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let mut max_y = max(new.max_time().unwrap(), old.max_time().unwrap()).as_millis();
+    // Add padding
+    max_y += max_y / 10;
+
+    let max_x = max(new.max_num().unwrap(), old.max_num().unwrap());
+
+    let mut chart = ChartBuilder::on(&root)
+        .margin(15)
+        .x_label_area_size(30)
+        .y_label_area_size(60)
+        .build_cartesian_2d(1..max_x, 0..max_y)?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Number of Classes")
+        .y_desc("Runtime in ms")
+        .draw()?;
+
+    chart
+        .draw_series(LineSeries::new(new.to_points(), &RED))?
+        .label("New System")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+
+    chart
+        .draw_series(LineSeries::new(old.to_points(), &BLUE))?
+        .label("Old System")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+
+    chart
+        .configure_series_labels()
+        .position(SeriesLabelPosition::UpperLeft)
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()?;
 
     Ok(())
 }

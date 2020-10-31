@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 
 use abs_syntax::ast;
 
-use crate::{chance, gen, Options};
+use crate::{chance, gen, Options, Target};
 
 pub fn ty_is_obj(ty: &ast::Type) -> bool {
     let str = &ty.ident.str;
@@ -262,7 +262,10 @@ impl RandGenerator {
                     method: f.ident,
                 }
                 .into()
-            } else if chance::chance(0.1) && self.scope.fn_of_type(ty.clone()).count() > 0 {
+            } else if self.opts.target != Target::Location
+                && chance::chance(0.1)
+                && self.scope.fn_of_type(ty.clone()).count() > 0
+            {
                 let f = self
                     .scope
                     .fn_of_type(ty.clone())

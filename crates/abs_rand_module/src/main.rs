@@ -13,10 +13,11 @@ mod chance;
 pub mod gen;
 mod generator;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Target {
     Crowbar,
     NullableExtension,
+    Location,
 }
 
 fn gen_mock_module(opts: Options) -> ast::Module {
@@ -214,7 +215,7 @@ fn create_rand_method(opts: Options) -> ast::MethodDecl {
         .with_annotation(gen::create_non_null_ret_anno(opts.target));
 
     let param = match opts.target {
-        Target::Crowbar => {
+        Target::Crowbar | Target::Location => {
             //sig.add_annotation(gen::create_crowbar_non_null_param("i"));
             gen::create_param(ty::simple_ty("I"), "i", gen::empty_annos())
         }
@@ -296,6 +297,11 @@ fn main() {
         opts.num_rand_classes = i;
         if i <= 20 {
             let path = format!("./out/generated-cb-{}.abs", i);
+            write_module(&path, opts).expect("An error occurred while writing the module");
+        }
+        if i <= 100 {
+            opts.target = Target::Location;
+            let path = format!("./out/generated-loc-{}.abs", i);
             write_module(&path, opts).expect("An error occurred while writing the module");
         }
         opts.target = Target::NullableExtension;

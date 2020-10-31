@@ -6,7 +6,7 @@ use std::{
 
 use std::{
     cmp,
-    fs::{self},
+    fs::{self, File},
     io::{self, Write},
     path::Path,
 };
@@ -113,6 +113,33 @@ impl BenchmarkResult {
     fn times(&self) -> Vec<Duration> {
         self.runs.iter().map(|r| r.duration).collect()
     }
+
+    fn format(&self) -> String {
+        let mut out = String::new();
+        for (i, r) in self.runs.iter().enumerate() {
+            if i > 0 {
+                out.push('\n');
+            }
+            out.push_str(&format!("{} {}", r.id, r.duration.as_millis()))
+        }
+        out
+    }
+
+    fn from_file(s: &str) -> Self {
+        let mut res = Self::new();
+
+        for line in s.split('\n') {
+            let mut i = line.split(' ');
+            let id = i.next().unwrap();
+            let time = i.next().unwrap();
+            let time: u128 = time.parse().unwrap();
+            let d = Duration::from_millis(time as u64);
+            let r = Run::new(d, id.parse().unwrap());
+            res.push(r)
+        }
+
+        res
+    }
 }
 
 fn get_num_classes(path: &PathBuf) -> u32 {
@@ -166,56 +193,135 @@ fn run_nullable(path: PathBuf) -> Option<Run> {
     Some(Run::new(start.elapsed(), num_classes))
 }
 
+fn run_location(path: PathBuf, old: bool) -> Option<Run> {
+    let num_classes = get_num_classes(&path);
+
+    let start = time::Instant::now();
+    let mut cmd = Command::new("../abstools/frontend/bin/bash/absc");
+    cmd.arg("--loctypes").arg(path);
+
+    if old {
+        cmd.arg("--nonullablecheck");
+    }
+
+    let output = cmd.output().expect("Location failed");
+    //io::stdout().write_all(&output.stdout).unwrap();
+    io::stderr().write_all(&output.stderr).unwrap();
+    if !output.status.success() {
+        return None;
+    }
+    Some(Run::new(start.elapsed(), num_classes))
+}
+
+fn print_results(
+    crowbar: &mut BenchmarkResult,
+    nullable_20: &mut BenchmarkResult,
+    nullable: &mut BenchmarkResult,
+    location: &mut BenchmarkResult,
+) {
+    if crowbar.size() > 0 {
+        println!("\n=== Crowbar results ===");
+        println!(
+            "Number of runs: {}\nAverage time: {}\nMedian time: {}",
+            crowbar.size(),
+            crowbar.avg(),
+            crowbar.median()
+        );
+    }
+    if nullable_20.size() > 0 {
+        println!("\n=== Nullable results for the first 20 ===");
+        println!(
+            "Number of runs: {}\nAverage time: {}\nMedian time: {}",
+            nullable_20.size(),
+            nullable_20.avg(),
+            nullable_20.median()
+        );
+    }
+    if nullable.size() > 0 {
+        println!("\n=== Nullable results for all 100 ===");
+        println!(
+            "Number of runs: {}\nAverage time: {}\nMedian time: {}",
+            nullable.size(),
+            nullable.avg(),
+            nullable.median()
+        );
+    }
+    if location.size() > 0 {
+        println!("\n=== Location Type Inference results for all 100 ===");
+        println!(
+            "Number of runs: {}\nAverage time: {}\nMedian time: {}",
+            location.size(),
+            location.avg(),
+            location.median()
+        );
+    }
+}
+
 fn main() -> io::Result<()> {
     let path = Path::new("./out/");
 
     let mut crowbar = BenchmarkResult::new();
     let mut nullable = BenchmarkResult::new();
+    let mut location = BenchmarkResult::new();
 
-    for e in fs::read_dir(path)? {
-        let e = e?;
-        let path = e.path();
-        let name: String = path.file_name().unwrap().to_str().unwrap().to_string();
-        println!("Current file: {}", name);
-        if name.contains("cb") {
-            if let Some(run) = run_crowbar(path) {
-                crowbar.push(run)
-            }
-        } else {
-            if let Some(run) = run_nullable(path) {
-                nullable.push(run)
+    let loc = std::env::args().any(|a| a == "--loc");
+    let plot_loc = std::env::args().any(|a| a == "--plot-loc");
+
+    if plot_loc {
+        use std::io::prelude::*;
+        let mut new_f = File::open("loc-runs.txt")?;
+        let mut new = String::new();
+        new_f.read_to_string(&mut new)?;
+        let mut old_f = File::open("loc-runs-old.txt")?;
+        let mut old = String::new();
+        old_f.read_to_string(&mut old)?;
+
+        let mut new = BenchmarkResult::from_file(&new);
+        let mut old = BenchmarkResult::from_file(&old);
+        plot::plot_loc(&mut new, &mut old).unwrap()
+    } else {
+        for e in fs::read_dir(path)? {
+            let e = e?;
+            let path = e.path();
+            let name: String = path.file_name().unwrap().to_str().unwrap().to_string();
+            println!("Current file: {}", name);
+            if loc {
+                if name.contains("loc") {
+                    if let Some(run) = run_location(path, false) {
+                        location.push(run)
+                    }
+                }
+            } else if name.contains("cb") {
+                if let Some(run) = run_crowbar(path) {
+                    crowbar.push(run)
+                }
+            } else {
+                if let Some(run) = run_nullable(path) {
+                    nullable.push(run)
+                }
             }
         }
+
+        let mut nullable_first_20 = nullable.take(20);
+
+        print_results(
+            &mut crowbar,
+            &mut nullable_first_20,
+            &mut nullable,
+            &mut location,
+        );
+
+        if crowbar.size() > 0 && nullable.size() > 0 {
+            plot::plot(&mut nullable_first_20, &mut crowbar).unwrap();
+            plot::plot_nullable(&mut nullable).unwrap();
+        }
+
+        if loc {
+            let mut f = fs::File::create("loc-runs.txt").unwrap();
+            f.write_all(&location.format().into_bytes()).unwrap();
+            f.flush().unwrap();
+        }
     }
-
-    let mut nullable_first_20 = nullable.take(20);
-
-    println!("\n=== Crowbar results ===");
-    println!(
-        "Number of runs: {}\nAverage time: {}\nMedian time: {}",
-        crowbar.size(),
-        crowbar.avg(),
-        crowbar.median()
-    );
-
-    println!("\n=== Nullable results for the first 20 ===");
-    println!(
-        "Number of runs: {}\nAverage time: {}\nMedian time: {}",
-        nullable_first_20.size(),
-        nullable_first_20.avg(),
-        nullable_first_20.median()
-    );
-
-    println!("\n=== Nullable results for all 100 ===");
-    println!(
-        "Number of runs: {}\nAverage time: {}\nMedian time: {}",
-        nullable.size(),
-        nullable.avg(),
-        nullable.median()
-    );
-
-    plot::plot(&mut nullable_first_20, &mut crowbar).unwrap();
-    plot::plot_nullable(&mut nullable).unwrap();
 
     Ok(())
 }
